@@ -1,0 +1,32 @@
+{
+"name": "bar",
+"sources": [
+{
+"name": "",
+"layerName": "ab9cd723",
+"locationBase": "ab9cd723"
+}
+],
+"layers": {
+"ab9cd723": {
+"glyph": {
+"xAdvance": 500,
+"backgroundImage": {
+"identifier": "299f48e5-157b-4087-bd79-05bf07b71cfb",
+"transformation": {
+"translateX": 463,
+"translateY": -162,
+"scaleX": 1.711933473877024,
+"scaleY": 1.711933473877024
+},
+"color": {
+"red": 0.7098039215686275,
+"green": 0.7137254901960784,
+"blue": 0.9490196078431372,
+"alpha": 0
+}
+}
+}
+}
+}
+}
