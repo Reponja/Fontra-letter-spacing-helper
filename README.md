@@ -150,6 +150,66 @@ The bridge uses `postMessage`:
 The full app remains usable without Fontra. The panel is an integration layer,
 not a dependency.
 
+## How this works in practice
+
+Yes — but it is a **workflow bridge**, not (yet) a live document bridge.
+
+There are two separate layers:
+
+```
+Fontra (source of truth)
+   │
+   ├── file round-trip: UFO / .fontra / .designspace
+   │        ↓
+   │   Fit import → measurement + spacing/kerning engines → review/apply
+   │        ↑
+   │   Fit export: UFO / .fontra / .designspace / .fit.json
+   │
+   └── panel bridge: selected glyph name + proof text (postMessage)
+            ↓
+        Fit embedded in the Fontra sidebar
+```
+
+**1. The file round-trip is the real data bridge.**
+Fontra edits outlines, groups, kerning and sources. Fit imports that data as
+UFO, `.fontra` or designspace, computes sidebearings/kerning/tracking and
+exports the result back in the same formats. Fontra then reopens the exported
+UFO/Fontra project. This is the recommended workflow today because both apps
+remain the source of truth for their own data.
+
+**2. The sidebar panel is a convenience bridge.**
+It embeds Fit inside Fontra and sends the current Fontra glyph name and proof
+text over `postMessage`. That means you can select `n` in Fontra and immediately
+see `n` in Fit, or send a proof string to Fit. It does **not** silently read or
+write Fontra's open document. Any spacing or kerning change you make in Fit is
+still saved through Fit's own export.
+
+**3. The engines are format-agnostic.**
+`src/core/` knows nothing about React or Fontra. It accepts a normalized glyph
+project and returns suggestions, metrics, kerning values, QA issues and export
+text. That is why the same engine can power the standalone app, the Fontra
+panel, and future CLI or batch tools.
+
+### Recommended real-world workflow
+
+1. Draw and finish the outlines in Fontra first.
+2. Export each master as UFO, or use the `.fontra` project folder directly.
+3. Import the font/designspace into Fit.
+4. Set the rhythm keys (`n`, `o`, `H`, `O` or your own), run auto-spacing, and
+   review the suggestions + proof at reading size.
+5. Build groups, run auto-kerning, and check the QA issues.
+6. Set tracking separately; export feature code/CSS rather than baking tracking
+   into glyph advances.
+7. Export UFO/designspace/Fontra from Fit and reopen in Fontra.
+8. Do the final production build in Fontra/fontmake/Glyphs. Fit's OTF export is
+   for proofing and review, not a substitute for the production compiler.
+
+The important expectation to set: **Fit does not currently write directly into
+Fontra's live editing session.** It is a spacing lab that can be embedded beside
+Fontra, with file round-tripping for actual data exchange. A true live plugin
+would need to use Fontra's editor APIs to read and write glyphs/kerning directly;
+the core engines are already structured to support that next step.
+
 ## Architecture
 
 ```
