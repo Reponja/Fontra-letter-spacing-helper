@@ -459,7 +459,9 @@ function isRuntimeFile(file) {
     file === "plugin.json" ||
     file === "start.js" ||
     file === "icon.svg" ||
-    file.startsWith("src/")
+    file.startsWith("src/") ||
+    // Fit keeps its runtime files in a nested folder referenced by plugin.json.
+    file.startsWith("fontra-plugin/")
   );
 }
 

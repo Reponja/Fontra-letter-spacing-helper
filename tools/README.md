@@ -44,9 +44,9 @@ The workflow is:
   This is what makes `@latest` purgeable.
 - Purges the exact release tag (the cache entry that `@latest` resolves to) and
   the runtime files Fontra loads under `@latest` (`plugin.json`, `start.js`,
-  `src/*.js`, and the icon). Alias files have their own cache entries, so
-  refreshing only the alias root can still leave Fontra loading an older
-  `src/core.js`.
+  `src/*.js`, the icon, and any nested `fontra-plugin/**` runtime files). Alias
+  files have their own cache entries, so refreshing only the alias root can
+  still leave Fontra loading an older `src/core.js` or `fontra-plugin/start.js`.
 - Verifies the bytes served for those `@latest` runtime files, not just the
   `x-jsd-version` header. If a file is stale, it re-purges it and checks again.
 - On the first run for a repository, purges **all tracked files**. That also
