@@ -159,22 +159,9 @@ function getProxy(subject, changes) {
 
 export function recordChanges(subject, func) {
   const changes = new ChangeCollector();
-  try {
-    const proxy = getProxy(subject, changes);
-    func(proxy);
-    return changes;
-  } catch (error) {
-    if (changes.hasRollbackChange) {
-      // Let the caller handle the error; applying a partial rollback is better
-      // than leaving the live object half-mutated.
-      try {
-        func;
-      } catch {
-        // ignore
-      }
-    }
-    throw error;
-  }
+  const proxy = getProxy(subject, changes);
+  func(proxy);
+  return changes;
 }
 
 function equalPath(a, b) {

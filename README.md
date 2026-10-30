@@ -107,6 +107,10 @@ problems.
 - Undo/redo with history labels (`Ctrl/Cmd+Z`, `Ctrl/Cmd+Shift+Z`, `Ctrl/Cmd+Y`).
 - Light/dark themes.
 - Mode shortcuts: `1` spacing, `2` kerning, `3` tracking, `4` proof, `5` QA.
+- Canvas navigation: **Ctrl/Cmd + wheel** zooms around the pointer, **drag empty
+  space** pans, **Space/Alt + drag** or **middle-drag** pans anywhere, `0`
+  resets the view, and `+`/`-` zoom. The current zoom is shown in the canvas
+  hint.
 - Ghost overlay of the previous state and a loaded reference font.
 - **Multi-master support**: a project can hold multiple sources with axis
   locations. A source selector appears in the top bar when there is more than
@@ -240,7 +244,7 @@ src/
   render/layout.ts      text layout, Path2D conversion, tracking/kerning application
   components/           React panels, canvas, proof bar, import/export UI
   App.tsx               application state, history, Fontra bridge
-fontra-plugin/          Fontra sidebar panel and descriptor
+fontra-plugin/          live Fontra sidebar panel, self-contained change recorder, built core
 tests/                  Vitest suites for all core engines and adapters
 public/demo-fontra/     bundled Fontulja sample
 public/demo.ttf         Atkinson Hyperlegible fallback + OFL license
