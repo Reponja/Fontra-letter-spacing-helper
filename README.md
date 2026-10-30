@@ -121,94 +121,100 @@ problems.
   `.designspace.zip` (all masters + UFOs), OTF (CFF outlines + legacy `kern`),
   feature code, CSS, tracking JSON/CSV, QA CSV/HTML.
 
-## Fontra plugin
+## Fontra plugin — live, no server
 
-`fontra-plugin/` contains a thin Fontra sidebar panel:
+Fit installs like any other Fontra plugin. There is **no dev server, no local
+boot script, and no iframe** in the installed plugin.
 
-- embeds the Fit lab in an iframe,
-- sends the current Fontra glyph selection to Fit,
-- sends proof text,
-- can open the full lab in a separate tab.
+1. Open Fontra's **Application Settings → Plugin Manager**.
+2. Choose **Add plugin** and enter the repository address:
+   `Reponja/Fontra-letter-spacing-helper`
+   (or the full URL `https://cdn.jsdelivr.net/gh/Reponja/Fontra-letter-spacing-helper@main`).
+3. Open the **Fit** tab in Fontra's right sidebar.
 
-`plugin.json` follows Fontra's plugin descriptor format (`init` + `function`),
-and `start.js` uses the same `Panel` API as Fontra's reference-font plugin.
+What the panel does now:
 
-To use it:
+- reads the **live Fontra font** through Fontra's public editor APIs;
+- converts the current glyph instances into Fit's normalized project model;
+- runs the same spacing, kerning, QA and tracking engines as the standalone app;
+- writes spacing/kerning changes back into Fontra's document;
+- provides an in-panel **Undo** for the last Fit edit;
+- reads current source/instance context and warns when edits are not possible
+  outside a source/master.
 
-1. Run the Fit dev server (`npm run dev`) or host the built `dist/`.
-2. Add the `fontra-plugin` folder to Fontra's plugin manager, or copy/symlink it
-   into the plugin directory your Fontra build scans.
-3. Open the **Fit — Letter Spacing Lab** sidebar panel.
-4. Adjust the URL if the app is not at `http://localhost:5173/`.
+`plugin.json` at the repository root is the descriptor Fontra fetches.
+`fontra-plugin/start.js` is a self-contained plugin panel; `fit-core.js` is the
+prebuilt, UI-independent engine bundle. The panel deliberately avoids deep
+imports into Fontra internals, because cross-origin plugin modules cannot rely
+on Fontra's internal import map.
 
-The bridge uses `postMessage`:
+For local plugin development:
 
-- `fit:ready` — sent by the app when it is ready.
-- `fit:select-glyph` — panel → app, selects a glyph by name.
-- `fit:set-text` — panel → app, replaces the proof text.
+```bash
+npm run build:plugin
+node scripts/serve-plugin.mjs 8080
+```
 
-The full app remains usable without Fontra. The panel is an integration layer,
-not a dependency.
+Then add `http://127.0.0.1:8080` in Fontra's Plugin Manager. This local server is
+only for development; the installed GitHub plugin needs none.
+
+The full standalone app remains usable without Fontra and retains the complete
+metrics-keys, group editor, multi-master, import/export and proofing workflow.
 
 ## How this works in practice
 
-Yes — but it is a **workflow bridge**, not (yet) a live document bridge.
-
-There are two separate layers:
+There are two ways to use Fit, and they now share the same engine:
 
 ```
 Fontra (source of truth)
    │
-   ├── file round-trip: UFO / .fontra / .designspace
-   │        ↓
-   │   Fit import → measurement + spacing/kerning engines → review/apply
-   │        ↑
-   │   Fit export: UFO / .fontra / .designspace / .fit.json
+   ├── live plugin: Fontra sidebar → Fit panel
+   │        reads current glyph instances + kerning
+   │        writes sidebearings, advances and kern pairs
+   │        Undo lives in the Fit panel
    │
-   └── panel bridge: selected glyph name + proof text (postMessage)
-            ↓
-        Fit embedded in the Fontra sidebar
+   └── standalone lab: file round-trip
+            UFO / .fontra / .designspace / TTF
+                ↓
+            Fit import → engines → review/apply
+                ↑
+            Fit export back to Fontra/UFO/designspace
 ```
 
-**1. The file round-trip is the real data bridge.**
-Fontra edits outlines, groups, kerning and sources. Fit imports that data as
-UFO, `.fontra` or designspace, computes sidebearings/kerning/tracking and
-exports the result back in the same formats. Fontra then reopens the exported
-UFO/Fontra project. This is the recommended workflow today because both apps
-remain the source of truth for their own data.
+**1. The Fontra plugin is a real live bridge.**
+Select a glyph in Fontra, open the Fit panel, analyze spacing or kerning, and
+apply. Fit calls Fontra's edit APIs; Fontra's canvas and document update. The
+panel has its own Undo button for the last Fit operation. This is the fastest
+path for a project that is already open in Fontra.
 
-**2. The sidebar panel is a convenience bridge.**
-It embeds Fit inside Fontra and sends the current Fontra glyph name and proof
-text over `postMessage`. That means you can select `n` in Fontra and immediately
-see `n` in Fit, or send a proof string to Fit. It does **not** silently read or
-write Fontra's open document. Any spacing or kerning change you make in Fit is
-still saved through Fit's own export.
+**2. The standalone lab is for deeper work.**
+Use it when you want the full workspace: metrics keys, group editing, proofing
+at reading size, batch exports, designspace/multi-master handling, or working
+without a Fontra session. Export `.fit.json`, UFO, `.fontra`, designspace, OTF
+or tracking/QA files from the lab.
 
-**3. The engines are format-agnostic.**
+**3. The engine is format-agnostic.**
 `src/core/` knows nothing about React or Fontra. It accepts a normalized glyph
 project and returns suggestions, metrics, kerning values, QA issues and export
-text. That is why the same engine can power the standalone app, the Fontra
-panel, and future CLI or batch tools.
+text. The live panel and the standalone app both call that same core.
 
 ### Recommended real-world workflow
 
-1. Draw and finish the outlines in Fontra first.
-2. Export each master as UFO, or use the `.fontra` project folder directly.
-3. Import the font/designspace into Fit.
-4. Set the rhythm keys (`n`, `o`, `H`, `O` or your own), run auto-spacing, and
-   review the suggestions + proof at reading size.
-5. Build groups, run auto-kerning, and check the QA issues.
-6. Set tracking separately; export feature code/CSS rather than baking tracking
-   into glyph advances.
-7. Export UFO/designspace/Fontra from Fit and reopen in Fontra.
+1. Draw/finish outlines in Fontra.
+2. Open the Fit sidebar panel and set the rhythm keys.
+3. Analyze spacing, proof/review, apply safe suggestions.
+4. Switch to Kerning, analyze pairs, apply exceptions.
+5. Run QA and inspect negative bearings, collisions and overkerns.
+6. Use tracking as layout data; export CSS/feature code rather than baking it
+   into advances.
+7. For deeper metric-key/group/designspace work, open the standalone lab and
+   round-trip UFO/Fontra files.
 8. Do the final production build in Fontra/fontmake/Glyphs. Fit's OTF export is
-   for proofing and review, not a substitute for the production compiler.
+   for proofing and review, not the production compiler.
 
-The important expectation to set: **Fit does not currently write directly into
-Fontra's live editing session.** It is a spacing lab that can be embedded beside
-Fontra, with file round-tripping for actual data exchange. A true live plugin
-would need to use Fontra's editor APIs to read and write glyphs/kerning directly;
-the core engines are already structured to support that next step.
+The installed plugin does not require you to download, host or boot Fit. It is
+served as a static module through the same GitHub/plugin-manager mechanism used
+by other Fontra plugins.
 
 ## Architecture
 
@@ -271,9 +277,11 @@ License; see `public/OFL-AtkinsonHyperlegible.txt`.
   Import a UFO or `.fontra` project for full kerning fidelity.
 - **Collision QA is capped** at the first 2,000 pairs and 24 scanlines. It is a
   review prompt, not an exhaustive proof.
-- **The Fontra bridge is selection/text deep, not document deep.** It does not
-  read or write the open Fontra project directly; use Fit's UFO/Fontra import and
-  export for round-tripping.
+- **The live Fontra panel covers the common loop, not every Fit feature.** It
+  reads glyph instances and kerning, applies sidebearings/advances/kerning, runs
+  QA and offers Undo. Metrics keys, group editing, designspace/multi-master work
+  and file export/import remain in the standalone lab. Edits are only possible
+  at a source/master location; interpolated instances are read-only.
 - **Multi-master is edit-per-source, not live interpolation.** You can import
   designspace masters and switch between them, but the canvas does not preview
   interpolated instances or edit axis mappings. Each source keeps its own

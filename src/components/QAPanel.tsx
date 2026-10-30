@@ -113,7 +113,12 @@ export default function QAPanel(props: QAPanelProps) {
         )}
       </Section>
 
-      <Section title="What gets checked" hint="A professional spacing pass needs both geometric checks and human proofing.">
+      <Section
+        title="What gets checked"
+        hint="A professional spacing pass needs both geometric checks and human proofing."
+        collapsible
+        defaultOpen={false}
+      >
         <ul className="check-list">
           <li>Negative sidebearings and non-positive advances</li>
           <li>Spacing-rhythm outliers by glyph class</li>

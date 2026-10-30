@@ -262,6 +262,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .glyph-canvas { display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
 .glyph-canvas.is-blurred { transition: filter 160ms; }
 .glyph-canvas.is-flipped { transition: transform 160ms; }
+.glyph-canvas.can-pan { cursor: grab; }
+.glyph-canvas.is-panning { cursor: grabbing; }
 .canvas-hint {
   position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
   background: color-mix(in srgb, var(--text) 86%, transparent);
@@ -322,6 +324,18 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .section { padding: 14px 14px 16px; border-bottom: 1px solid var(--line); }
 .section-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
 .section-heading h3 { font-size: 12px; font-weight: 700; letter-spacing: -0.01em; }
+.section-toggle {
+  display: flex; align-items: flex-start; gap: 6px; padding: 0; border: 0;
+  background: transparent; color: inherit; text-align: left; cursor: pointer; flex: 1; min-width: 0;
+}
+.section-caret {
+  display: grid; place-items: center; width: 15px; height: 15px; flex: none;
+  margin-top: 1px; border: 1px solid var(--line); border-radius: 4px;
+  color: var(--muted); font-family: var(--mono); font-size: 11px; line-height: 1;
+}
+.section--collapsible .section-heading { margin-bottom: 0; }
+.section--collapsible.is-open .section-heading { margin-bottom: 10px; }
+.section--collapsible .section-toggle:hover .section-caret { color: var(--text); border-color: var(--line-strong); }
 .section-hint { color: var(--muted); font-size: 10px; line-height: 1.45; margin-top: 3px; max-width: 42em; }
 .section-actions { flex: none; }
 .field-grid { display: grid; gap: 8px; }

@@ -146,7 +146,12 @@ export default function SpacingPanel(props: SpacingPanelProps) {
         )}
       </Section>
 
-      <Section title="Rhythm keys" hint="The key glyphs define the spacing system. Everything else is derived from them.">
+      <Section
+        title="Rhythm keys"
+        hint="The key glyphs define the spacing system. Everything else is derived from them."
+        collapsible
+        defaultOpen={false}
+      >
         <div className="field-grid field-grid--two">
           <KeyGlyphSelect
             label="Lowercase stem"
@@ -321,7 +326,12 @@ export default function SpacingPanel(props: SpacingPanelProps) {
         )}
       </Section>
 
-      <Section title="Groups" hint="Spacing groups are different from kerning groups: they describe related side shapes.">
+      <Section
+        title="Groups"
+        hint="Spacing groups are different from kerning groups: they describe related side shapes."
+        collapsible
+        defaultOpen={false}
+      >
         <div className="stat-grid">
           <Stat label="Left groups" value={groupSummary.leftGroups} />
           <Stat label="Right groups" value={groupSummary.rightGroups} />

@@ -114,6 +114,8 @@ export default function TrackingPanel({ project, onChange, onExport }: TrackingP
       <Section
         title="OpenType preview"
         hint="This is the code Fit would generate. It is intentionally separate from your existing kern feature."
+        collapsible
+        defaultOpen={false}
         actions={
           <div className="inline-actions">
             <button className="button button--tiny" onClick={() => onExport("features")}>Download .fea</button>
@@ -133,7 +135,12 @@ export default function TrackingPanel({ project, onChange, onExport }: TrackingP
         <pre className="code-block">{features}</pre>
       </Section>
 
-      <Section title="CSS / layout equivalent" hint="Use this when you are testing tracking in a browser or design app.">
+      <Section
+        title="CSS / layout equivalent"
+        hint="Use this when you are testing tracking in a browser or design app."
+        collapsible
+        defaultOpen={false}
+      >
         <pre className="code-block code-block--small">{css}</pre>
         <div className="inline-actions">
           <button className="button button--small" onClick={() => onExport("css")}>Download CSS</button>

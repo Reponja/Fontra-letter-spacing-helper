@@ -146,7 +146,12 @@ export default function AssistantPanel({
         )}
       </Section>
 
-      <Section title="Methods in this build" hint="Fit ships with several engines and a solver, not a single black box.">
+      <Section
+        title="Methods in this build"
+        hint="Fit ships with several engines and a solver, not a single black box."
+        collapsible
+        defaultOpen={false}
+      >
         <div className="method-list">
           <div><strong>Stem / cadence</strong><span>Measures the n/m stem interval and derives sidebearings from glyph classes.</span></div>
           <div><strong>Optical</strong><span>Compares the side profile of each glyph to the key glyph and compensates for round/open shapes.</span></div>

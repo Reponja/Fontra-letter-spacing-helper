@@ -66,7 +66,6 @@ export default function KerningPanel(props: KerningPanelProps) {
   const [pairSearch, setPairSearch] = useState("");
   const [groupSide, setGroupSide] = useState<"left" | "right">("left");
   const [newGroup, setNewGroup] = useState("");
-  const [showGroups, setShowGroups] = useState(true);
 
   const left = getGlyph(project, selectedPair[0]);
   const right = getGlyph(project, selectedPair[1]);
@@ -161,12 +160,9 @@ export default function KerningPanel(props: KerningPanelProps) {
 
       <Section
         title="Groups"
-        actions={
-          <button className="button button--small" onClick={() => setShowGroups((show) => !show)}>
-            {showGroups ? "Hide" : "Show"}
-          </button>
-        }
         hint="Assign glyphs to left (side 1) and right (side 2) groups. Exceptions can override group values."
+        collapsible
+        defaultOpen={false}
       >
         <div className="group-assign-grid">
           {Array.from(new Set(selectedPair)).map((glyphName) => {
@@ -217,8 +213,7 @@ export default function KerningPanel(props: KerningPanelProps) {
           <button className="button button--small" onClick={onAutoGroups}>Auto groups</button>
           <span className="muted small">Side 1 = left glyph in LTR; side 2 = right glyph.</span>
         </div>
-        {showGroups && (
-          <div className="group-columns">
+        <div className="group-columns">
             {(["left", "right"] as const).map((side) => (
               <div className="group-column" key={side}>
                 <div className="group-column-head">
@@ -243,8 +238,7 @@ export default function KerningPanel(props: KerningPanelProps) {
                 </div>
               </div>
             ))}
-          </div>
-        )}
+        </div>
         <div className="inline-actions">
           <select className="select-input" value={groupSide} onChange={(event) => setGroupSide(event.target.value as "left" | "right")}>
             <option value="left">left</option>
@@ -273,6 +267,8 @@ export default function KerningPanel(props: KerningPanelProps) {
       <Section
         title="Pair list"
         hint="A pair list keeps kerning focused. Build one for the combinations that actually need work."
+        collapsible
+        defaultOpen={false}
         actions={
           <div className="inline-actions">
             <button className="button button--tiny" onClick={() => onPairListChange(defaultPairList(project))}>
@@ -390,7 +386,12 @@ export default function KerningPanel(props: KerningPanelProps) {
         )}
       </Section>
 
-      <Section title="Batch transforms" hint="Clean up the kerning table without changing the design intent.">
+      <Section
+        title="Batch transforms"
+        hint="Clean up the kerning table without changing the design intent."
+        collapsible
+        defaultOpen={false}
+      >
         <div className="inline-actions">
           <button className="button button--small" onClick={() => onTransform("round")}>Round to 5</button>
           <button className="button button--small" onClick={() => onTransform("prune")}>Prune redundant</button>

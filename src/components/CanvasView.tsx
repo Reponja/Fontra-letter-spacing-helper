@@ -38,6 +38,13 @@ type DragState =
       delta: number;
       leftIndex: number;
     }
+  | {
+      kind: "pan";
+      startX: number;
+      startY: number;
+      startPanX: number;
+      startPanY: number;
+    }
   | undefined;
 
 interface DrawContext {
@@ -82,9 +89,16 @@ export default function CanvasView(props: CanvasViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ width: 900, height: 520 });
   const [drag, setDrag] = useState<DragState>();
+  const [view, setView] = useState({ zoom: 1, panX: 0, panY: 0 });
+  const [spaceDown, setSpaceDown] = useState(false);
   const dragRef = useRef<DragState>(undefined);
+  const viewRef = useRef(view);
   const layoutRef = useRef<TextLayout | undefined>(undefined);
   const drawContextRef = useRef<DrawContext | undefined>(undefined);
+
+  useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
 
   useEffect(() => {
     dragRef.current = drag;
@@ -138,9 +152,10 @@ export default function CanvasView(props: CanvasViewProps) {
       (width - paddingX * 2) / Math.max(1, layout.totalWidth),
       (height - paddingY * 2) / Math.max(1, vertical)
     );
-    const scale = Math.max(0.02, baseFit * settings.zoom);
-    const originX = Math.max(paddingX, (width - layout.totalWidth * scale) / 2);
-    const baselineY = Math.min(height - paddingY, Math.max(paddingY, height * 0.7));
+    const scale = Math.max(0.02, baseFit * settings.zoom * view.zoom);
+    const originX = Math.max(paddingX, (width - layout.totalWidth * scale) / 2) + view.panX;
+    const baselineY =
+      Math.min(height - paddingY, Math.max(paddingY, height * 0.7)) + view.panY;
     const drawContext = { scale, originX, baselineY, width, height };
     drawContextRef.current = drawContext;
 
@@ -158,15 +173,103 @@ export default function CanvasView(props: CanvasViewProps) {
       drawSelectedGlyphOverlay(ctx, project, selected, drawContext, drag, measurementLine);
     }
     drawLegend(ctx, layout, drawContext, selectedGlyph, mode, settings);
-  }, [layout, project, ghostProject, referenceProject, text, mode, selectedGlyph, selectedPair, settings, size, drag, measurementLine]);
+  }, [layout, project, ghostProject, referenceProject, text, mode, selectedGlyph, selectedPair, settings, size, drag, measurementLine, view]);
 
   useEffect(() => {
     draw();
   }, [draw]);
 
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      const context = drawContextRef.current;
+      const currentLayout = layoutRef.current;
+      if (!context || !currentLayout) return;
+      const rect = canvas.getBoundingClientRect();
+      const pointerX = event.clientX - rect.left;
+      const pointerY = event.clientY - rect.top;
+      const oldView = viewRef.current;
+      const factor = Math.exp(-event.deltaY * 0.0014);
+      const nextZoom = Math.min(8, Math.max(0.2, oldView.zoom * factor));
+      const scaleFactor = nextZoom / oldView.zoom;
+      const worldX = (pointerX - context.originX) / context.scale;
+      const worldY = (context.baselineY - pointerY) / context.scale;
+      const newScale = context.scale * scaleFactor;
+      const width = Math.max(100, size.width);
+      const height = Math.max(100, size.height);
+      const paddingX = 64;
+      const paddingY = 92;
+      const vertical = project.ascender - project.descender;
+      const baseFit = Math.min(
+        (width - paddingX * 2) / Math.max(1, currentLayout.totalWidth),
+        (height - paddingY * 2) / Math.max(1, vertical)
+      );
+      const baseScale = Math.max(0.02, baseFit * settings.zoom * nextZoom);
+      const baseOriginX = Math.max(paddingX, (width - currentLayout.totalWidth * baseScale) / 2);
+      const baseBaselineY = Math.min(height - paddingY, Math.max(paddingY, height * 0.7));
+      const newOriginX = pointerX - worldX * newScale;
+      const newBaselineY = pointerY + worldY * newScale;
+      setView({
+        zoom: nextZoom,
+        panX: newOriginX - baseOriginX,
+        panY: newBaselineY - baseBaselineY,
+      });
+    };
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", onWheel);
+  }, [size, settings.zoom, project.ascender, project.descender]);
+
+  useEffect(() => {
+    const isTextField = (target: EventTarget | null) =>
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      (target instanceof HTMLElement && target.isContentEditable);
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (isTextField(event.target)) return;
+      if (event.code === "Space") {
+        event.preventDefault();
+        setSpaceDown(true);
+      } else if (event.key === "0") {
+        setView({ zoom: 1, panX: 0, panY: 0 });
+      } else if (event.key === "+" || event.key === "=") {
+        setView((current) => ({ ...current, zoom: Math.min(8, current.zoom * 1.15) }));
+      } else if (event.key === "-") {
+        setView((current) => ({ ...current, zoom: Math.max(0.2, current.zoom / 1.15) }));
+      }
+    };
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.code === "Space") setSpaceDown(false);
+    };
+    const onBlur = () => setSpaceDown(false);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, []);
+
   const getPointer = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  };
+
+  const beginPan = (pointer: { x: number; y: number }, event: React.PointerEvent<HTMLCanvasElement>) => {
+    const current = viewRef.current;
+    setDrag({
+      kind: "pan",
+      startX: pointer.x,
+      startY: pointer.y,
+      startPanX: current.panX,
+      startPanY: current.panY,
+    });
+    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -175,6 +278,12 @@ export default function CanvasView(props: CanvasViewProps) {
     if (!context || !layoutRef.current) return;
     const { scale, originX } = context;
     const items = layoutRef.current.items;
+
+    if (event.button === 1 || spaceDown || event.altKey) {
+      event.preventDefault();
+      beginPan(pointer, event);
+      return;
+    }
 
     const hit = items.find((item) => {
       const x0 = originX + item.x * scale;
@@ -234,6 +343,10 @@ export default function CanvasView(props: CanvasViewProps) {
         }
       }
     }
+
+    if (event.button === 0) {
+      beginPan(pointer, event);
+    }
   };
 
   const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -241,12 +354,24 @@ export default function CanvasView(props: CanvasViewProps) {
     const pointer = getPointer(event);
     const context = drawContextRef.current;
     if (!context) return;
+    if (drag.kind === "pan") {
+      setView((current) => ({
+        ...current,
+        panX: drag.startPanX + (pointer.x - drag.startX),
+        panY: drag.startPanY + (pointer.y - drag.startY),
+      }));
+      return;
+    }
     const delta = (pointer.x - drag.startX) / context.scale;
     setDrag({ ...drag, delta });
   };
 
   const onPointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drag) return;
+    if (drag.kind === "pan") {
+      setDrag(undefined);
+      return;
+    }
     const pointer = getPointer(event);
     const context = drawContextRef.current;
     if (context) {
@@ -266,7 +391,7 @@ export default function CanvasView(props: CanvasViewProps) {
     <div className="canvas-wrap" ref={containerRef}>
       <canvas
         ref={canvasRef}
-        className={`glyph-canvas ${settings.blur ? "is-blurred" : ""} ${settings.flip ? "is-flipped" : ""}`}
+        className={`glyph-canvas ${settings.blur ? "is-blurred" : ""} ${settings.flip ? "is-flipped" : ""} ${spaceDown ? "can-pan" : ""} ${drag?.kind === "pan" ? "is-panning" : ""}`}
         style={{
           filter: settings.blur ? `blur(${settings.blur}px)` : undefined,
           transform: settings.flip ? "scaleX(-1)" : undefined,
@@ -276,11 +401,16 @@ export default function CanvasView(props: CanvasViewProps) {
         onPointerUp={onPointerUp}
         onPointerCancel={() => setDrag(undefined)}
       />
-      {mode === "spacing" && (
-        <div className="canvas-hint">Drag a blue sidebearing line, or use the fields on the right.</div>
-      )}
-      {mode === "kerning" && (
-        <div className="canvas-hint">Click or drag the gap between two glyphs to edit kerning.</div>
+      {mode !== "proof" && (
+        <div className="canvas-hint">
+          {mode === "spacing"
+            ? "Drag a blue sidebearing line to edit · drag empty space to pan"
+            : mode === "kerning"
+              ? "Click or drag a pair gap to edit · drag empty space to pan"
+              : "Drag empty space to pan · Ctrl+wheel to zoom"}
+          {" · Ctrl+wheel zoom · 0 reset · "}
+          {Math.round(settings.zoom * view.zoom * 100)}%
+        </div>
       )}
     </div>
   );

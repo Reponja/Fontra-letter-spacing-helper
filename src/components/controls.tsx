@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 export function NumberField({
   label,
@@ -110,22 +110,48 @@ export function Section({
   children,
   actions,
   hint,
+  collapsible = false,
+  defaultOpen = true,
 }: {
   title: string;
   children: ReactNode;
   actions?: ReactNode;
   hint?: string;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
 }) {
-  return (
-    <section className="section">
-      <div className="section-heading">
-        <div>
-          <h3>{title}</h3>
-          {hint && <p className="section-hint">{hint}</p>}
+  const [open, setOpen] = useState(defaultOpen);
+  if (!collapsible) {
+    return (
+      <section className="section">
+        <div className="section-heading">
+          <div>
+            <h3>{title}</h3>
+            {hint && <p className="section-hint">{hint}</p>}
+          </div>
+          {actions && <div className="section-actions">{actions}</div>}
         </div>
+        {children}
+      </section>
+    );
+  }
+  return (
+    <section className={`section section--collapsible ${open ? "is-open" : ""}`}>
+      <div className="section-heading">
+        <button
+          className="section-toggle"
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+        >
+          <span className="section-caret">{open ? "−" : "+"}</span>
+          <span>
+            <h3>{title}</h3>
+            {hint && <p className="section-hint">{hint}</p>}
+          </span>
+        </button>
         {actions && <div className="section-actions">{actions}</div>}
       </div>
-      {children}
+      {open && children}
     </section>
   );
 }

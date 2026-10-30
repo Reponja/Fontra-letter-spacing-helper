@@ -1,0 +1,5 @@
+{
+  "name": "Fit — Letter Spacing Lab",
+  "init": "./fontra-plugin/start.js",
+  "function": "start"
+}
