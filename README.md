@@ -146,7 +146,7 @@ boot script, and no iframe** in the installed plugin.
 1. Open Fontra's **Application Settings → Plugin Manager**.
 2. Choose **Add plugin** and enter the repository address:
    `Reponja/Fontra-letter-spacing-helper`
-   (or the full URL `https://cdn.jsdelivr.net/gh/Reponja/Fontra-letter-spacing-helper@main`).
+   (or the full URL `https://cdn.jsdelivr.net/gh/Reponja/Fontra-letter-spacing-helper@latest`).
 3. Open the **Fit** tab in Fontra's right sidebar.
 
 What the panel does now:
@@ -174,6 +174,23 @@ node scripts/serve-plugin.mjs 8080
 
 Then add `http://127.0.0.1:8080` in Fontra's Plugin Manager. This local server is
 only for development; the installed GitHub plugin needs none.
+
+### Updating the installed plugin (jsDelivr cache)
+
+Fontra loads `owner/repo` plugins through jsDelivr. jsDelivr caches `@latest`
+aggressively and can only purge **semver release tags**, not branches. After
+pushing a plugin update, run:
+
+```bat
+tools\purge-jsdelivr.cmd
+```
+
+The helper tags the pushed commit with the next semver patch release, purges the
+release tag and the `@latest` runtime files (`plugin.json`, `start.js`,
+`fit-core.js`, `change-recorder.js`, `fit.svg`), and verifies that the CDN is
+serving the new bytes. Then reload Fontra; use DevTools → Network → **Disable
+cache** if the browser itself holds an old module. See
+[`tools/README.md`](tools/README.md).
 
 The full standalone app remains usable without Fontra and retains the complete
 metrics-keys, group editor, multi-master, import/export and proofing workflow.
