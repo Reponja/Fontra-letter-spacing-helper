@@ -143,14 +143,33 @@ export interface QAIssue {
 
 export interface SpacingParams {
   method: "stem" | "optical" | "hybrid";
+  /** Explicit total gap. 0 means "derive it from the key glyphs". */
   targetGap: number;
+  /** Multiplier applied to the derived/explicit gap. 1 = unchanged. */
+  targetGapScale: number;
+  /** How the automatic target gap is derived when targetGap is 0. */
+  targetMode: "key" | "median";
   opticalCompensation: number;
+  /** Hybrid balance: 0 = fully optical, 1 = fully stem. */
+  stemWeight: number;
+  /** How much of the proposed change is applied. 0 = keep, 1 = full. */
+  strength: number;
+  /** Extra units added to round sides (negative tucks them in). */
+  roundAdjust: number;
+  /** Extra units added to open/diagonal sides. */
+  openAdjust: number;
   minSidebearing: number;
   maxSidebearing: number;
   keyLower: string;
   keyUpper: string;
   zone: "auto" | "xheight" | "capheight";
   roundTo: number;
+  /** Per-category gap multipliers. 1 = use the global target gap. */
+  lowercaseGapScale: number;
+  uppercaseGapScale: number;
+  punctuationGapScale: number;
+  /** Never move a sidebearing that is controlled by a metrics key. */
+  respectMetricsKeys: boolean;
 }
 
 export interface AutoKernParams {

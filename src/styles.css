@@ -78,6 +78,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
+  color: var(--text);
   background:
     radial-gradient(circle at 12% 0%, rgba(255,255,255,0.55), transparent 34%),
     var(--bg);
@@ -123,6 +124,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .button {
   border: 1px solid var(--line);
   background: var(--panel);
+  color: var(--text);
   border-radius: var(--radius-sm);
   padding: 7px 11px;
   cursor: pointer;

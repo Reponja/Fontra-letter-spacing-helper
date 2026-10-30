@@ -17,46 +17,125 @@ import {
   sidebearingsOf,
   zoneForGlyph,
 } from "./geometry";
-import { activeSource, getGlyph, leftGroupOf, rightGroupOf } from "./project";
+import {
+  activeSource,
+  getGlyph,
+  leftGroupOf,
+  resolvedMetricsSide,
+  rightGroupOf,
+} from "./project";
 import { median } from "./path";
 
 export const DEFAULT_SPACING_PARAMS: SpacingParams = {
   method: "hybrid",
   targetGap: 0,
+  targetGapScale: 1,
+  targetMode: "key",
   opticalCompensation: 0.65,
+  stemWeight: 0.5,
+  strength: 1,
+  roundAdjust: 0,
+  openAdjust: 0,
   minSidebearing: 4,
   maxSidebearing: 500,
   keyLower: "n",
   keyUpper: "H",
   zone: "auto",
   roundTo: 1,
+  lowercaseGapScale: 1,
+  uppercaseGapScale: 1,
+  punctuationGapScale: 1,
+  respectMetricsKeys: true,
 };
 
+function keyCandidates(project: FontProject, params: SpacingParams): string[] {
+  const keys = project.keyGlyphs;
+  return [
+    keys?.lowerStem || params.keyLower,
+    keys?.lowerRound || "o",
+    keys?.upperStem || params.keyUpper,
+    keys?.upperRound || "O",
+  ].filter(Boolean);
+}
+
+function medianKeyGap(project: FontProject, params: SpacingParams): number | undefined {
+  const totals: number[] = [];
+  for (const name of keyCandidates(project, params)) {
+    const glyph = getGlyph(project, name);
+    if (!glyph) continue;
+    const sb = sidebearingsOf(glyph);
+    if (sb.left + sb.right > 0) totals.push(sb.left + sb.right);
+  }
+  if (!totals.length) return undefined;
+  return median(totals);
+}
+
 export function defaultTargetGap(project: FontProject, params: SpacingParams): number {
+  const scale = params.targetGapScale ?? 1;
   if (params.targetGap > 0) {
-    return params.targetGap;
+    return params.targetGap * scale;
   }
   const lowerKey = project.keyGlyphs?.lowerStem || params.keyLower;
   const upperKey = project.keyGlyphs?.upperStem || params.keyUpper;
+  if (params.targetMode === "median") {
+    const medianGap = medianKeyGap(project, params);
+    if (medianGap !== undefined && medianGap > 0) {
+      return medianGap * scale;
+    }
+  }
   const lower = getGlyph(project, lowerKey);
   if (lower) {
     const sb = sidebearingsOf(lower);
     if (sb.left + sb.right > 0) {
-      return sb.left + sb.right;
+      return (sb.left + sb.right) * scale;
     }
   }
   const upper = getGlyph(project, upperKey);
   if (upper) {
     const sb = sidebearingsOf(upper);
     if (sb.left + sb.right > 0) {
-      return sb.left + sb.right;
+      return (sb.left + sb.right) * scale;
     }
   }
   const stem = measureKeyStem(project, lowerKey, params.zone);
   if (stem.interval > 0) {
-    return stem.interval * 0.55;
+    return stem.interval * 0.55 * scale;
   }
-  return project.unitsPerEm * 0.18;
+  return project.unitsPerEm * 0.18 * scale;
+}
+
+/**
+ * Category-specific multiplier applied to the global target gap. Designers
+ * often want punctuation tighter than letters, or uppercase looser than
+ * lowercase even when both are derived from the same rhythm.
+ */
+export function categoryGapScale(
+  params: SpacingParams,
+  category: Glyph["category"]
+): number {
+  switch (category) {
+    case "Uppercase":
+    case "Smallcaps":
+    case "Number":
+      return params.uppercaseGapScale ?? 1;
+    case "Punctuation":
+    case "Symbol":
+      return params.punctuationGapScale ?? 1;
+    case "Lowercase":
+      return params.lowercaseGapScale ?? 1;
+    default:
+      return 1;
+  }
+}
+
+function shapeAdjustment(
+  sideClass: string,
+  params: SpacingParams
+): number {
+  if (sideClass === "round") return params.roundAdjust ?? 0;
+  if (sideClass === "soft") return (params.roundAdjust ?? 0) * 0.4;
+  if (sideClass === "open") return params.openAdjust ?? 0;
+  return 0;
 }
 
 function keyForSide(
@@ -112,7 +191,11 @@ export function suggestSpacingForGlyph(
   if (!bounds) return undefined;
   const current = sidebearingsOf(glyph);
   const { yStart, yEnd } = zoneForGlyph(project, glyph, params.zone);
-  const halfGap = targetGap / 2;
+  const glyphGap = targetGap * categoryGapScale(params, glyph.category);
+  const halfGap = glyphGap / 2;
+  const stemWeight = clamp(params.stemWeight ?? 0.5, 0, 1);
+  const strength = clamp(params.strength ?? 1, 0, 1);
+  const opticalCompensation = params.opticalCompensation ?? 0.65;
   let proposedLeft = current.left;
   let proposedRight = current.right;
   let confidence = 0.55;
@@ -127,18 +210,31 @@ export function suggestSpacingForGlyph(
       ? keySidebearing(keyGlyph, side)
       : halfGap;
     const stemBase = halfGap;
+    const stemValue = stemBase - profile.averageExtra * opticalCompensation;
+    const opticalValue = keyBase - extraDelta * opticalCompensation;
+    const hybridValue = stemValue * stemWeight + opticalValue * (1 - stemWeight);
     let value: number;
     if (params.method === "stem") {
-      value = stemBase - profile.averageExtra * params.opticalCompensation;
+      value = stemValue;
     } else if (params.method === "optical") {
-      value = keyBase - extraDelta * params.opticalCompensation;
+      value = opticalValue;
     } else {
-      const stemValue = stemBase - profile.averageExtra * params.opticalCompensation;
-      const opticalValue = keyBase - extraDelta * params.opticalCompensation;
-      value = (stemValue + opticalValue) / 2;
+      value = hybridValue;
     }
-    value = clamp(value, params.minSidebearing, params.maxSidebearing);
-    value = roundTo(value, params.roundTo);
+    const currentSide = side === "left" ? current.left : current.right;
+    const lockedKey = params.respectMetricsKeys
+      ? glyph.metricsKeys?.[side]
+      : undefined;
+    if (lockedKey) {
+      // A metrics key owns this side; auto-spacing must not fight it.
+      value = resolvedMetricsSide(project, glyph.name, side) ?? currentSide;
+      reasons.push(`${side} locked by =${lockedKey}`);
+    } else {
+      value += shapeAdjustment(sideClass, params);
+      value = currentSide + (value - currentSide) * strength;
+      value = clamp(value, params.minSidebearing, params.maxSidebearing);
+    }
+    value = roundTo(value, params.roundTo || 1);
     if (side === "left") {
       proposedLeft = value;
     } else {
@@ -153,6 +249,7 @@ export function suggestSpacingForGlyph(
       confidence -= 0.15;
       reasons.push(`${side} uses parametric stem rhythm (${sideClass})`);
     }
+    if (profile.coverage < 0.35) confidence -= 0.05;
   }
 
   confidence = clamp(confidence, 0.25, 0.97);

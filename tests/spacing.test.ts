@@ -28,6 +28,76 @@ describe("spacing engine", () => {
     expect(suggestion.confidence).toBeGreaterThan(0.5);
   });
 
+  it("scales the target gap globally and per category", () => {
+    const project = createTestProject();
+    const scaled = { ...flatSpacingParams, targetGapScale: 1.25 };
+    expect(defaultTargetGap(project, scaled)).toBe(125);
+
+    const H = getGlyph(project, "H")!;
+    const suggestion = suggestSpacingForGlyph(project, H, {
+      ...flatSpacingParams,
+      uppercaseGapScale: 1.2,
+    })!;
+    expect(suggestion.proposedLeft).toBe(60);
+    expect(suggestion.proposedRight).toBe(60);
+  });
+
+  it("derives the target gap from the median of the rhythm keys", () => {
+    const project = createTestProject();
+    getGlyph(project, "n")!.advanceWidth = 460; // make the primary key atypical
+    const params = {
+      ...flatSpacingParams,
+      targetGap: 0,
+      targetMode: "median" as const,
+    };
+    expect(defaultTargetGap(project, params)).toBe(110);
+  });
+
+  it("respects the hybrid stem/optical balance", () => {
+    const project = createTestProject();
+    const b = getGlyph(project, "b")!;
+    const stem = suggestSpacingForGlyph(project, b, {
+      ...flatSpacingParams,
+      method: "hybrid",
+      stemWeight: 1,
+    })!;
+    const optical = suggestSpacingForGlyph(project, b, {
+      ...flatSpacingParams,
+      method: "hybrid",
+      stemWeight: 0,
+    })!;
+    expect(stem.proposedLeft).toBe(50);
+    expect(optical.proposedLeft).toBe(40);
+    expect(optical.proposedRight).toBe(60);
+  });
+
+  it("does not fight a sidebearing controlled by a metrics key", () => {
+    const project = createTestProject();
+    const b = getGlyph(project, "b")!;
+    b.metricsKeys = { left: "n" };
+    const respected = suggestSpacingForGlyph(project, b, flatSpacingParams)!;
+    expect(respected.proposedLeft).toBe(40); // =n left sidebearing
+    expect(respected.proposedRight).toBe(50);
+    expect(respected.reason).toContain("locked by =n");
+
+    const ignored = suggestSpacingForGlyph(project, b, {
+      ...flatSpacingParams,
+      respectMetricsKeys: false,
+    })!;
+    expect(ignored.proposedLeft).toBe(50);
+  });
+
+  it("blends the suggestion with the current spacing by strength", () => {
+    const project = createTestProject();
+    const n = getGlyph(project, "n")!;
+    const half = suggestSpacingForGlyph(project, n, {
+      ...flatSpacingParams,
+      strength: 0.5,
+    })!;
+    expect(half.proposedLeft).toBe(45);
+    expect(half.proposedRight).toBe(55);
+  });
+
   it("does not propose spacing for space glyphs", () => {
     const project = createTestProject();
     const space = getGlyph(project, "space")!;

@@ -197,11 +197,14 @@ export function sideProfile(
     samples.push(Math.max(0, extra));
   }
   const total = samples.reduce((a, b) => a + b, 0);
+  // Average over the samples that actually cross ink. Dividing by the full
+  // sample count made sparse shapes (i, j, punctuation, f) look falsely flat
+  // and pushed their sidebearings outward.
   return {
     side,
     yStart,
     yEnd,
-    averageExtra: total / sampleCount,
+    averageExtra: covered ? total / covered : 0,
     maxExtra: Math.max(0, ...samples),
     coverage: covered / sampleCount,
     samples,

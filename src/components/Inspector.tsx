@@ -51,6 +51,7 @@ interface InspectorProps {
   onGroupCreate: (side: "left" | "right", name: string) => void;
   onGroupDelete: (side: "left" | "right", name: string) => void;
   onKerningTransform: (kind: "round" | "prune" | "small" | "scale") => void;
+  onResetKerning: () => void;
   onTrackingChange: (project: FontProject) => void;
   onExportTracking: (kind: "features" | "css" | "tracking-json" | "tracking-csv") => void;
   onRunQA: () => void;
@@ -131,6 +132,7 @@ export default function Inspector(props: InspectorProps) {
             onGroupCreate={props.onGroupCreate}
             onGroupDelete={props.onGroupDelete}
             onTransform={props.onKerningTransform}
+            onResetKerning={props.onResetKerning}
           />
         )}
         {tab === "tracking" && (

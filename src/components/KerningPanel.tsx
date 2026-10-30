@@ -41,6 +41,7 @@ interface KerningPanelProps {
   onGroupCreate: (side: "left" | "right", name: string) => void;
   onGroupDelete: (side: "left" | "right", name: string) => void;
   onTransform: (kind: "round" | "prune" | "small" | "scale") => void;
+  onResetKerning: () => void;
 }
 
 export default function KerningPanel(props: KerningPanelProps) {
@@ -62,6 +63,7 @@ export default function KerningPanel(props: KerningPanelProps) {
     onGroupCreate,
     onGroupDelete,
     onTransform,
+    onResetKerning,
   } = props;
   const [pairSearch, setPairSearch] = useState("");
   const [groupSide, setGroupSide] = useState<"left" | "right">("left");
@@ -107,9 +109,14 @@ export default function KerningPanel(props: KerningPanelProps) {
         title="Current pair"
         hint="Kerning is a local correction. If a pair needs a lot of kerning, fix spacing first."
         actions={
-          <button className="button button--tiny" onClick={() => onSelectPair([selectedPair[0], selectedPair[1]])}>
-            Focus
-          </button>
+          <div className="inline-actions">
+            <button className="button button--tiny" onClick={() => onSelectPair([selectedPair[0], selectedPair[1]])}>
+              Focus
+            </button>
+            <button className="button button--tiny button--danger" onClick={onResetKerning} title="Remove every kern pair in this font">
+              Reset all kerning
+            </button>
+          </div>
         }
       >
         <div className="pair-head">

@@ -127,6 +127,14 @@ export default function App() {
     projectRef.current = project;
   }, [project]);
 
+  useEffect(() => {
+    // The theme variables live on [data-theme], but body text/background are
+    // outside .app. Set the attribute on <html> so inherited colors (buttons,
+    // glyph rows, native controls) switch with the theme too.
+    document.documentElement.dataset.theme = settings.theme;
+    document.documentElement.style.colorScheme = settings.theme;
+  }, [settings.theme]);
+
   const showToast = useCallback((message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(undefined), 2600);
@@ -448,6 +456,25 @@ export default function App() {
       else scaleKerning(draft, 0.9);
     });
     showToast(`Kerning ${kind} complete`);
+  }, [commit, showToast]);
+
+  const onResetKerning = useCallback(() => {
+    const source = activeSource(projectRef.current);
+    const count = Object.keys(source.kerning).length;
+    if (!count) {
+      showToast("No kerning pairs to reset");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Remove all ${count} kerning pairs from '${source.name}'? This can be undone with Ctrl+Z.`
+    );
+    if (!confirmed) return;
+    setGhostProject(cloneProject(projectRef.current));
+    commit(`Reset all kerning (${count} pairs)`, (draft) => {
+      activeSource(draft).kerning = {};
+    });
+    setKerningSuggestions([]);
+    showToast(`Reset ${count} kerning pairs`);
   }, [commit, showToast]);
 
   const onTrackingChange = useCallback((next: FontProject) => {
@@ -802,6 +829,7 @@ export default function App() {
           onGroupCreate={onGroupCreate}
           onGroupDelete={onGroupDelete}
           onKerningTransform={onKerningTransform}
+          onResetKerning={onResetKerning}
           onTrackingChange={onTrackingChange}
           onExportTracking={(kind) => onExport(kind)}
           onRunQA={onRunQA}

@@ -1,8 +1,19 @@
 import type { FontProject, SpacingParams, SpacingSuggestion } from "../core/types";
 import { sidebearingsOf } from "../core/geometry";
 import { leftGroupOf, rightGroupOf, sortedGlyphs } from "../core/project";
-import { spacingGroupsSummary, defaultTargetGap } from "../core/spacing";
-import { ConfidenceBar, EmptyState, NumberField, Section, SliderField } from "./controls";
+import {
+  DEFAULT_SPACING_PARAMS,
+  defaultTargetGap,
+  spacingGroupsSummary,
+} from "../core/spacing";
+import {
+  ConfidenceBar,
+  EmptyState,
+  NumberField,
+  Section,
+  SliderField,
+  Toggle,
+} from "./controls";
 import GlyphThumb from "./GlyphThumb";
 
 interface SpacingPanelProps {
@@ -218,11 +229,24 @@ export default function SpacingPanel(props: SpacingPanelProps) {
             suffix="0 = auto"
             min={0}
           />
+          <label className="field">
+            <span>Auto target</span>
+            <select
+              className="select-input"
+              value={params.targetMode}
+              onChange={(event) =>
+                onParamsChange({ ...params, targetMode: event.target.value as SpacingParams["targetMode"] })
+              }
+            >
+              <option value="key">Key glyph rhythm</option>
+              <option value="median">Median of rhythm keys</option>
+            </select>
+          </label>
           <NumberField
             label="Min sidebearing"
             value={params.minSidebearing}
             onChange={(value) => onParamsChange({ ...params, minSidebearing: value })}
-            min={0}
+            min={-500}
           />
           <NumberField
             label="Max sidebearing"
@@ -242,19 +266,29 @@ export default function SpacingPanel(props: SpacingPanelProps) {
               <option value="capheight">cap-height</option>
             </select>
           </label>
+          <label className="field">
+            <span>Rounding</span>
+            <select
+              className="select-input"
+              value={params.roundTo}
+              onChange={(event) => onParamsChange({ ...params, roundTo: Number(event.target.value) })}
+            >
+              <option value={1}>1 unit</option>
+              <option value={2}>2 units</option>
+              <option value={5}>5 units</option>
+              <option value={10}>10 units</option>
+            </select>
+          </label>
         </div>
-        <SliderField
-          label="Optical compensation"
-          value={params.opticalCompensation}
-          min={0}
-          max={1.4}
-          step={0.05}
-          onChange={(value) => onParamsChange({ ...params, opticalCompensation: value })}
-          format={(value) => value.toFixed(2)}
-        />
         <div className="target-note">
           Current target gap: <strong>{targetGap.toFixed(0)} units</strong>
-          {params.targetGap === 0 && " (derived from the key glyph)"}
+          {params.targetGap === 0
+            ? params.targetMode === "median"
+              ? " (median of the rhythm keys)"
+              : " (from the key glyph)"
+            : " (explicit)"}
+          {(params.targetGapScale ?? 1) !== 1 &&
+            ` · scaled ×${(params.targetGapScale ?? 1).toFixed(2)}`}
         </div>
         <div className="inline-actions">
           <button className="button button--primary" onClick={onRun}>
@@ -265,6 +299,130 @@ export default function SpacingPanel(props: SpacingPanelProps) {
           </button>
           <button className="button button--ghost" onClick={onFindOutliers}>
             Find outliers
+          </button>
+        </div>
+      </Section>
+
+      <Section
+        title="Fine tuning"
+        hint="These values shape the proposal. Change them, then run Suggest spacing again. Nothing is applied until you do."
+        collapsible
+        defaultOpen={false}
+      >
+        <SliderField
+          label="Stem / optical balance"
+          value={params.stemWeight}
+          min={0}
+          max={1}
+          step={0.05}
+          onChange={(value) => onParamsChange({ ...params, stemWeight: value })}
+          format={(value) => `${Math.round(value * 100)}% stem`}
+        />
+        <SliderField
+          label="Optical compensation"
+          value={params.opticalCompensation}
+          min={0}
+          max={1.4}
+          step={0.05}
+          onChange={(value) => onParamsChange({ ...params, opticalCompensation: value })}
+          format={(value) => value.toFixed(2)}
+        />
+        <SliderField
+          label="Suggestion strength"
+          value={params.strength}
+          min={0}
+          max={1}
+          step={0.05}
+          onChange={(value) => onParamsChange({ ...params, strength: value })}
+          format={(value) => `${Math.round(value * 100)}%`}
+        />
+        <SliderField
+          label="Global gap scale"
+          value={params.targetGapScale}
+          min={0.7}
+          max={1.3}
+          step={0.01}
+          onChange={(value) => onParamsChange({ ...params, targetGapScale: value })}
+          format={(value) => `${Math.round(value * 100)}%`}
+        />
+        <div className="field-grid field-grid--three">
+          <NumberField
+            label="Lowercase gap"
+            value={params.lowercaseGapScale}
+            onChange={(value) => onParamsChange({ ...params, lowercaseGapScale: value })}
+            step={0.01}
+            min={0.5}
+            max={1.5}
+            suffix="×"
+          />
+          <NumberField
+            label="Uppercase gap"
+            value={params.uppercaseGapScale}
+            onChange={(value) => onParamsChange({ ...params, uppercaseGapScale: value })}
+            step={0.01}
+            min={0.5}
+            max={1.5}
+            suffix="×"
+          />
+          <NumberField
+            label="Punctuation gap"
+            value={params.punctuationGapScale}
+            onChange={(value) => onParamsChange({ ...params, punctuationGapScale: value })}
+            step={0.01}
+            min={0.5}
+            max={1.5}
+            suffix="×"
+          />
+        </div>
+        <div className="field-grid field-grid--two">
+          <NumberField
+            label="Round side trim"
+            value={params.roundAdjust}
+            onChange={(value) => onParamsChange({ ...params, roundAdjust: value })}
+            min={-100}
+            max={100}
+            suffix="units"
+          />
+          <NumberField
+            label="Open/diagonal trim"
+            value={params.openAdjust}
+            onChange={(value) => onParamsChange({ ...params, openAdjust: value })}
+            min={-100}
+            max={100}
+            suffix="units"
+          />
+        </div>
+        <p className="section-hint">
+          Round trim is added to round sides (negative tucks them in). Open trim
+          applies to diagonal/open sides such as v, w, y and V.
+        </p>
+        <Toggle
+          label="Respect metrics keys"
+          checked={params.respectMetricsKeys}
+          onChange={(checked) => onParamsChange({ ...params, respectMetricsKeys: checked })}
+          hint="Leave sidebearings that are linked to another glyph untouched."
+        />
+        <div className="inline-actions">
+          <button
+            className="button button--small"
+            onClick={() =>
+              onParamsChange({
+                ...params,
+                targetGapScale: 1,
+                stemWeight: DEFAULT_SPACING_PARAMS.stemWeight,
+                strength: 1,
+                roundAdjust: 0,
+                openAdjust: 0,
+                lowercaseGapScale: 1,
+                uppercaseGapScale: 1,
+                punctuationGapScale: 1,
+                respectMetricsKeys: true,
+                opticalCompensation: DEFAULT_SPACING_PARAMS.opticalCompensation,
+                roundTo: 1,
+              })
+            }
+          >
+            Reset tuning
           </button>
         </div>
       </Section>

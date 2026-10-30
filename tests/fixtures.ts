@@ -81,13 +81,23 @@ export function createTestProject(): FontProject {
 export const flatSpacingParams = {
   method: "stem" as const,
   targetGap: 100,
+  targetGapScale: 1,
+  targetMode: "key" as const,
   opticalCompensation: 0.6,
+  stemWeight: 0.5,
+  strength: 1,
+  roundAdjust: 0,
+  openAdjust: 0,
   minSidebearing: 0,
   maxSidebearing: 500,
   keyLower: "n",
   keyUpper: "H",
   zone: "auto" as const,
   roundTo: 1,
+  lowercaseGapScale: 1,
+  uppercaseGapScale: 1,
+  punctuationGapScale: 1,
+  respectMetricsKeys: true,
 };
 
 export const testAutoKernParams = {

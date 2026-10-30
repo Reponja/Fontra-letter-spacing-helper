@@ -20,7 +20,7 @@ Open <http://localhost:5173>. The app loads `public/demo-fontra` automatically.
 Use **Import** to bring in another font.
 
 ```bash
-npm test       # 64 tests across the core engines and adapters
+npm test       # 69 tests across the core engines and adapters
 npm run check  # TypeScript
 npm run build  # production build in dist/
 npm run preview
@@ -40,6 +40,17 @@ npm run preview
   - *Hybrid* — blends both for a robust first pass.
 - **Non-destructive suggestions** with confidence, before/after values and a
   human-readable reason. Apply one, apply "safe" suggestions, or apply all.
+- **Fine tuning** for the proposal:
+  - stem/optical balance in hybrid mode
+  - optical compensation for round and open profiles
+  - suggestion strength (blend the proposal with the current spacing)
+  - global, lowercase, uppercase and punctuation gap scales
+  - round-side and open/diagonal trims
+  - key-glyph vs. median-of-keys target gap
+  - min/max sidebearing and 1/2/5/10-unit rounding
+  - respect metrics keys, so linked sidebearings are never moved by auto-spacing
+- **Sparse-shape aware measurement**: side profiles average only over scanlines
+  that cross ink, so i, j, punctuation and f are not treated as falsely flat.
 - **Direct editing**: drag the blue sidebearing lines on the canvas, or type LSB,
   RSB and advance values. Every edit is undoable.
 - **Outlier detection** by glyph category and side-shape class (flat, soft,
@@ -64,6 +75,8 @@ npm run preview
 - Separate left (side 1) and right (side 2) groups, with group assignment and
   deletion.
 - Batch transforms: round to 5, prune redundant, remove small values, scale.
+- **Reset all kerning** for the active source, with a confirmation prompt and
+  normal undo support.
 - Canvas pair editing by clicking or dragging the gap between glyphs.
 
 ### Tracking

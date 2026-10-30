@@ -181,6 +181,8 @@ export default class FitPanel extends HTMLElement {
     .fit-btn--primary:hover { background: #3a3630; }
     .fit-btn--small { padding: 3px 6px; font-size: 9px; }
     .fit-btn--ghost { border-color: transparent; }
+    .fit-btn--danger { color: #b42318; border-color: #e2b9b4; }
+    .fit-btn--danger:hover { background: #fde4e0; }
     .fit-seg { display: flex; background: var(--ui-list-header-background-color, #8882); border-radius: 6px; padding: 2px; gap: 2px; }
     .fit-seg button { flex: 1; border: 0; background: transparent; color: inherit; border-radius: 4px; padding: 4px 3px; font: inherit; font-size: 9px; font-weight: 650; cursor: pointer; }
     .fit-seg button.is-active { background: var(--ui-element-background-color, #fff); box-shadow: 0 1px 2px #0002; }
@@ -239,6 +241,9 @@ export default class FitPanel extends HTMLElement {
     this.pairRight = "o";
     this.method = "hybrid";
     this.targetGap = 0;
+    this.spacingStrength = 100;
+    this.spacingGapScale = 100;
+    this.spacingBalance = 50;
     this.keyLower = "n";
     this.keyUpper = "H";
 
@@ -561,6 +566,18 @@ export default class FitPanel extends HTMLElement {
           this.snapshot.project.keyGlyphs.upperStem = value;
         }),
         this.inputField("Target gap", this.targetGap, (value) => (this.targetGap = value), "0 = auto"),
+        this.inputField("Strength %", this.spacingStrength, (value) => {
+          this.spacingStrength = value;
+          this.render();
+        }, "100 = full proposal"),
+        this.inputField("Gap scale %", this.spacingGapScale, (value) => {
+          this.spacingGapScale = value;
+          this.render();
+        }, "100 = key rhythm"),
+        this.inputField("Stem / optical %", this.spacingBalance, (value) => {
+          this.spacingBalance = value;
+          this.render();
+        }, "0 optical · 100 stem"),
       ]),
       el("div", { class: "fit-row", style: "margin-top:7px" }, [
         button("Analyze font", () => this.analyzeSpacing(), "fit-btn--primary"),
@@ -636,6 +653,9 @@ export default class FitPanel extends HTMLElement {
       ...fit.DEFAULT_SPACING_PARAMS,
       method: this.method,
       targetGap: this.targetGap,
+      strength: Math.max(0, Math.min(1, this.spacingStrength / 100)),
+      targetGapScale: Math.max(0.5, Math.min(2, this.spacingGapScale / 100)),
+      stemWeight: Math.max(0, Math.min(1, this.spacingBalance / 100)),
       keyLower: this.keyLower,
       keyUpper: this.keyUpper,
     };
@@ -716,6 +736,7 @@ export default class FitPanel extends HTMLElement {
       el("div", { class: "fit-row", style: "margin-top:6px" }, [
         button("Suggest pair", () => this.analyzeKerning([this.pairLeft, this.pairRight]), "fit-btn--primary"),
         button("Suggest all pairs", () => this.analyzeKerning()),
+        button("Reset all", () => this.resetAllKerning(), "fit-btn--danger"),
       ]),
     ]);
 
@@ -806,6 +827,58 @@ export default class FitPanel extends HTMLElement {
     } catch (error) {
       console.error("Fit: kerning apply failed", error);
       this.setStatus(`Kerning apply failed: ${error}`, true);
+    }
+  }
+
+  async resetAllKerning() {
+    if (!this.snapshot) return;
+    if (!this.snapshot.sourceIdentifier) {
+      this.setStatus("Move to a source/master to reset kerning.", true);
+      return;
+    }
+    try {
+      const kerning = (await this.fontController.getKerning())?.kern;
+      const sourceIndex = kerning?.sourceIdentifiers?.indexOf(this.snapshot.sourceIdentifier) ?? -1;
+      if (!kerning || sourceIndex < 0) {
+        this.setStatus("No kerning data for this source.");
+        return;
+      }
+      const pairSelectors = [];
+      for (const [leftName, rights] of Object.entries(kerning.values || {})) {
+        for (const [rightName, values] of Object.entries(rights || {})) {
+          const value = Array.isArray(values) ? values[sourceIndex] : values;
+          if (typeof value === "number" && value !== 0) {
+            pairSelectors.push({
+              leftName,
+              rightName,
+              sourceIdentifier: this.snapshot.sourceIdentifier,
+            });
+          }
+        }
+      }
+      if (!pairSelectors.length) {
+        this.setStatus("No kerning to reset in this source.");
+        return;
+      }
+      if (!window.confirm(`Set all ${pairSelectors.length} kerning pairs in this source to 0?`)) {
+        return;
+      }
+      this.setStatus(`Resetting ${pairSelectors.length} kerning pairs…`);
+      const kerningController = await this.fontController.getKerningController("kern");
+      const editContext = kerningController.getEditContext(pairSelectors);
+      const changes = await editContext.edit(
+        pairSelectors.map(() => 0),
+        "Fit: reset all kerning"
+      );
+      if (changes) this.lastEdit = changes;
+      this.undoButton.disabled = !this.lastEdit;
+      this.snapshot.project.sources[0].kerning = {};
+      this.kerningSuggestions = [];
+      this.setStatus(`Reset ${pairSelectors.length} kerning pairs`);
+      this.render();
+    } catch (error) {
+      console.error("Fit: reset kerning failed", error);
+      this.setStatus(`Reset failed: ${error}`, true);
     }
   }
 
